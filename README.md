@@ -1,12 +1,12 @@
 # ED Circuits
 
-A julia package for the exact diagonalization (ED) simulation of the quantum circuits featuring
+A Julia package for the exact diagonalization (ED) simulation of quantum circuits featuring
 
 * Many choices for state initialization
 * Iterative gate application, including with Trotterization schemes
 * Random gate generation
 * Mid-circuit measurements
-* Multiple observables, such as entanglement and Rényi entropies, mutual informaiton and stabilizer Rényi entropies
+* Multiple observables, such as entanglement and Rényi entropies, mutual information and stabilizer Rényi entropies
 * Projected ensemble generation and associated moments and frame potential
 
 The package was created for the simulations in the following works:
