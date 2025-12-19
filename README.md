@@ -14,7 +14,7 @@ The package was created for the simulations in the following works:
 **H Lóio, G Lami, L Leone, M McGinley, X Turkeshi, J De Nardis,
 "Quantum State Designs via Magic Teleportation",
 arXiv:2510.13950
-https://doi.org/10.48550/arXiv.2510.13950**
+DOI: https://doi.org/10.48550/arXiv.2510.13950**
 
 **G Cecile, H Lóio, J De Nardis,
 "Measurement-induced phase transitions by matrix product states scaling"
