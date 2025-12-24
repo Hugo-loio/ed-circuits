@@ -13,13 +13,11 @@ The package was created for the simulations in the following works:
 
 **H Lóio, G Lami, L Leone, M McGinley, X Turkeshi, J De Nardis,
 "Quantum State Designs via Magic Teleportation",
-arXiv:2510.13950
-DOI: https://doi.org/10.48550/arXiv.2510.13950**
+[arXiv:2510.13950](https://doi.org/10.48550/arXiv.2510.13950)**
 
 **G Cecile, H Lóio, J De Nardis,
-"Measurement-induced phase transitions by matrix product states scaling"
-Phys. Rev. Research 6, 033220
-DOI: https://doi.org/10.1103/PhysRevResearch.6.033220** 
+"Measurement-induced phase transitions by matrix product states scaling",
+[Phys. Rev. Research 6, 033220](https://doi.org/10.1103/PhysRevResearch.6.033220)** 
 
 If you use this code in your research please cite the relevant works.
 
