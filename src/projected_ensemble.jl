@@ -195,6 +195,7 @@ function frame_potential(moments::Vector{Array{ComplexF64,2}})
 end
 
 # Haar distance from the moments of a random monte carlo projected ensemble
+# TODO: Fix state resampling bug
 function rand_proj_moments_haar_dists(
         psi::State, sitesA::Vector{Int64}, kmax::Int64, nproj::Vector{Int}; 
         normtype::String = "frob",
@@ -230,7 +231,7 @@ function rand_proj_moments_frame_potential(
     delta_n_old = nproj[1]
     for (i,n) in enumerate(nproj[2:end])
         delta_n = n - nproj[i]
-        moments = ensemble_moments(kmax, states[nproj[i]:n]; moments = moments*(delta_n_old/delta_n))
+        moments = ensemble_moments(kmax, states[nproj[i]+1:n]; moments = moments*(delta_n_old/delta_n))
         push!(frames, [mynorm(moment*(delta_n/n), normtype)^2 for moment in moments])
         delta_n_old = delta_n
     end
@@ -327,7 +328,7 @@ function rand_proj_overlaps_frame_potential_v2(
             end
         end
         push!(frames, prefactor*overlaps/n)
-        nstart = n
+        nstart = n + 1
     end
     return frames
 end

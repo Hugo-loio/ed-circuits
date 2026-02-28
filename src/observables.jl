@@ -17,13 +17,6 @@ function von_neumann_ent(rho)
     return -sum(eigs .* log.(eigs))
 end
 
-# Bipartition starts at site
-function bip_ent_entropy(psi::State, site::Integer)
-    ss = svdvals(reshape(psi.state, (2^(site-1), 2^(psi.L-site+1))))
-    ps = 1E-9 .+ ss .* ss
-    return -sum(ps .* log.(ps))
-end
-
 function bip_ent_entropy(psi::State, sitesA::Vector)
     LA = size(sitesA, 1)
     state = reshape(psi.state, psi.tensordim)
@@ -31,6 +24,11 @@ function bip_ent_entropy(psi::State, sitesA::Vector)
     ss = svdvals(reshape(permutedims(state, perm), (2^LA, 2^(psi.L-LA))))
     ps = 1E-9 .+ ss .* ss
     return -sum(ps .* log.(ps))
+end
+
+# Bipartition starts at site
+function bip_ent_entropy(psi::State, site::Integer)
+    return bip_ent_entropy(psi, collect(1:site-1))
 end
 
 function tripartite_mutual_information(psi::State, sitesA, sitesB, sitesC)

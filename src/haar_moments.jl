@@ -23,7 +23,7 @@ function haar_moment(d, k)
     for perm in perms
         rho += permutation_matrix(perm, d, k)
     end
-    return rho * factorial(d-1) / factorial(k + d - 1)
+    return rho * prod(d:(k + d - 1))
 end
 
 function haar_frame_potential(d, k)

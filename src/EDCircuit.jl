@@ -28,7 +28,7 @@ end
 
 mutable struct State{L}
     const L::Int64
-    const indices::NTuple{L, Float64}
+    const indices::NTuple{L, Int64}
     const flatdim::Int64
     const tensordim::NTuple{L, Int64}
     state::Vector{ComplexF64}
