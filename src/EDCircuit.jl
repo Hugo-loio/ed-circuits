@@ -41,39 +41,13 @@ mutable struct State{L}
     end
 end
 
-# Measurement operator container
-# TODO: Decomposition into eigenvector
-# overlap with each eigenvector to get the probability 
-# (save the partially projected states)
-# kronecker product to recover output
-#struct MeasurementOperator
-#    L::Int64
-#    operator::Hermitian{ComplexF64}
-#    eigenvalues::Vector{Float64} 
-#    eigenbras::Vector{Vector{Vector{ComplexF64}}} # Grouped by eigenvalue
-#    eigenkets::Vector{Vector{Vector{ComplexF64}}} # Grouped by eigenvalue
-#    function MeasurementOperator(operator)
-#        operator = Hermitian{ComplexF64}(operator)
-#
-#        decomp = eigen(operator)
-#        eigenvalues = unique(x -> round(x, digits = 10), decomp.values)
-#        U = decomp.vectors  
-#
-#        # 3. Group eigenvectors by their corresponding unique eigenvalue
-#        grouped_subspaces = Dict(
-#        val => U[:, findall(x -> isapprox(x, val, atol=tol), λ)]
-#        for val in unique_λ
-#)
-#        new{L}(L, tuple(perm...), 2^L, tuple([2 for _ in 1:L]...), state, perm)
-#    end
-#end
-
 
 # Swap array elements
 function swap!(array, index1, index2)
-    temp = array[index1]
-    array[index1] = array[index2]
-    array[index2] = temp
+    array[index1], array[index2] = array[index2], array[index1]
+    #temp = array[index1]
+    #array[index1] = array[index2]
+    #array[index2] = temp
 end
 
 # Find right permutation in the permuted indices basis. 
@@ -90,22 +64,63 @@ function find_perm(sites, psi::State)
     return perm
 end
 
+function group_sites!(psi::State, sites::Vector{Int64})
+    nsites = size(sites, 1)
+    # Flatten in reverse order due to Julia is column majored arrays
+    perm = find_perm(reverse(sites), psi) 
+    # Permute sites and reshape state 
+    psi.perm = psi.perm[perm]
+    return reshape(permutedims(reshape(psi.state, psi.tensordim), perm),
+                   (2^nsites, 2^(psi.L-nsites)))
+end
+
 # Applies any k-qubit gate to any k sites
 function apply_gate!(psi::State, sites::Vector{Int64}, gate::Matrix{ComplexF64})
-    Lgate = size(sites, 1)
-    perm = find_perm(reverse(sites), psi) # Since Julia is column majored the sites should be flattened in reverse order 
-    # Permute sites and reshape state for multiplication
-    psi.perm = psi.perm[perm]
-    permstate::Matrix{ComplexF64} = reshape(permutedims(reshape(psi.state, psi.tensordim), perm), (2^Lgate, 2^(psi.L-Lgate)))
-    #display(permstate)
+    permstate::Matrix{ComplexF64} = group_sites!(psi, sites)
     psi.state = reshape(gate * permstate, 2^psi.L)
+end
+
+# Measurement operator container
+struct MeasurementOperator
+    Lop::Int64 
+    operator::Hermitian{ComplexF64, Matrix{ComplexF64}}
+    eigenvalues::Vector{Float64} 
+    eigenbras::Vector{Matrix{ComplexF64}} 
+    eigenkets::Vector{Matrix{ComplexF64}} 
+    function MeasurementOperator(operator)
+        op = Hermitian(ComplexF64.(operator))
+        L = trailing_zeros(size(op, 1))
+
+        decomp = eigen(operator)
+        vals = unique(x -> round(x, digits = 10), decomp.values)
+
+        eigenbras = Vector{Matrix{ComplexF64}}()
+        eigenkets = Vector{Matrix{ComplexF64}}()
+
+        for (i,λ) in enumerate(vals)
+            indices = findall(x -> isapprox(x, λ, atol=1E-9), decomp.values)
+            push!(eigenkets, decomp.vectors[:,indices])
+            push!(eigenbras, Matrix(eigenkets[end]'))
+        end
+        new(L, op, vals, eigenbras, eigenkets)
+    end
+end
+
+## Generalized many-qubit projective measurement 
+function measure!(psi::State, sites::Vector{Int64}, op::MeasurementOperator)
+    permstate::Matrix{ComplexF64} = group_sites!(psi, sites)
+    postmeas_states = [bras * permstate for bras in op.eigenbras]
+    probs = [norm(state)^2 for state in postmeas_states]
+    index = findfirst(>(rand()), cumsum(probs))
+    psi.state = reshape((op.eigenkets[index] * postmeas_states[index]) / sqrt(probs[index]), 2^psi.L)
+    return (probs[index], op.eigenvalues[index])
 end
 
 # Localilly measures a qubit in the Z direction
 function measure!(psi::State, site::Int64)
     perm_site = findfirst(isequal(site), psi.perm)
     state = reshape(psi.state, (2^(perm_site-1), 2, 2^(psi.L-perm_site)))
-    prob = norm(state[:,1,:])^2
+    prob = norm(@views state[:,1,:])^2
     if(rand() < prob)
         state[:,2,:] .= 0
         state ./= sqrt(prob)  
@@ -117,28 +132,6 @@ function measure!(psi::State, site::Int64)
     end
     return res
 end
-
-## Checks if the 
-#function check_measurement_basis(basis::Vector{State})
-#end
-
-## Generalized k-qubit projective measurement for a set of k-qubit 
-## measurement basis (assuming the some of their projectors is identity)
-#function measure!(psi::State, sites::Vector{Int64}, basis::Vector{State})
-#    perm_site = findfirst(isequal(site), psi.perm)
-#    state = reshape(psi.state, (2^(perm_site-1), 2, 2^(psi.L-perm_site)))
-#    prob = norm(state[:,1,:])^2
-#    if(rand() < prob)
-#        state[:,2,:] .= 0
-#        state ./= sqrt(prob)  
-#        res = (prob, 1)
-#    else
-#        state[:,1,:] .= 0
-#        state ./= sqrt(1-prob) 
-#        res = (1-prob, 0)
-#    end
-#    return res
-#end
 
 # Applying gates might permute the site basis of the state
 # This function sorts the sites to the original order
