@@ -12,6 +12,17 @@ function measure_layer!(circuit::Circuit, psi::State, prob::Float64)
     return record
 end
 
+# Measure a set of equally dimensioned operators with a given probability 
+# on each set of sites in <sites_vector>
+function measure_operators!(psi::State, prob::Float64, 
+        sites_vector::Vector{Vector{Int64}}, ops::Vector{MeasurementOperator})
+    for op in ops
+        for sites in sites_vector[rand(length(sites_vector)) .< prob]
+            measure!(psi, sites, op)
+        end
+    end
+end
+
 function apply_gate_manytimes!(psi::State, sites_vector::Vector{Vector{Int64}}, gate::Matrix{ComplexF64})
     for sites in sites_vector
         apply_gate!(psi, sites, gate)

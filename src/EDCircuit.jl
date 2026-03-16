@@ -10,8 +10,6 @@ using SparseArrays
 using SpecialFunctions: factorial
 using Combinatorics: permutations
 
-# TODO: optimize anywhere there is permutedims
-
 # Container for system properties
 mutable struct Circuit
     pbc::Bool
@@ -36,10 +34,12 @@ mutable struct State{L}
     const flatdim::Int64
     const tensordim::NTuple{L, Int64}
     state::Vector{ComplexF64}
+    buffer::Vector{ComplexF64} # Reduces extra allocations in intermediate steps 
     perm::Vector{Int64} # Stores the permutation of sites during dynamics
     function State(L::Int64, state)
         perm = collect(1:L)
-        new{L}(L, tuple(perm...), 2^L, tuple([2 for _ in 1:L]...), state, perm)
+        new{L}(L, tuple(perm...), 2^L, tuple(fill(2, L)...), 
+               state, copy(state), perm)
     end
 end
 
@@ -47,9 +47,6 @@ end
 # Swap array elements
 function swap!(array, index1, index2)
     array[index1], array[index2] = array[index2], array[index1]
-    #temp = array[index1]
-    #array[index1] = array[index2]
-    #array[index2] = temp
 end
 
 # Find right permutation in the permuted indices basis. 
@@ -70,16 +67,15 @@ function group_sites!(psi::State, sites::Vector{Int64})
     nsites = size(sites, 1)
     # Flatten in reverse order due to Julia is column majored arrays
     perm = find_perm(reverse(sites), psi) 
-    # Permute sites and reshape state 
-    psi.perm = psi.perm[perm]
-    return reshape(permutedims(reshape(psi.state, psi.tensordim), perm),
-                   (2^nsites, 2^(psi.L-nsites)))
+    permute!(psi.perm, perm)
+    permutedims!(reshape(psi.buffer, psi.tensordim), reshape(psi.state, psi.tensordim), perm)
+    return reshape(psi.buffer, (2^nsites, 2^(psi.L-nsites)))
 end
 
 # Applies any k-qubit gate to any k sites
 function apply_gate!(psi::State, sites::Vector{Int64}, gate::Matrix{ComplexF64})
     permstate::Matrix{ComplexF64} = group_sites!(psi, sites)
-    psi.state = reshape(gate * permstate, 2^psi.L)
+    mul!(reshape(psi.state, size(permstate)), gate, permstate)
 end
 
 # Measurement operator container
@@ -111,11 +107,25 @@ end
 ## Generalized many-qubit projective measurement 
 function measure!(psi::State, sites::Vector{Int64}, op::MeasurementOperator)
     permstate::Matrix{ComplexF64} = group_sites!(psi, sites)
-    postmeas_states = [bras * permstate for bras in op.eigenbras]
-    probs = [norm(state)^2 for state in postmeas_states]
-    index = findfirst(>(rand() * sum(probs)), cumsum(probs))
-    psi.state = reshape((op.eigenkets[index] * postmeas_states[index]) / sqrt(probs[index]), 2^psi.L)
-    return (probs[index], op.eigenvalues[index])
+    r::Float64, cumul::Float64 = rand(), 0
+    for (i,bras) in enumerate(op.eigenbras)
+        dim = (size(bras, 1), size(permstate, 2))
+        mul!(reshape(view(psi.state, 1:prod(dim)), dim), bras, permstate)
+        prob = norm(view(psi.state, 1:prod(dim)))^2
+        cumul += prob
+
+        if(cumul < r && i < length(op.eigenbras)) continue end
+        mul!(reshape(psi.buffer, size(permstate)), op.eigenkets[i]/sqrt(prob), 
+             reshape(view(psi.state, 1:prod(dim)), dim))
+        psi.state, psi.buffer = psi.buffer, psi.state
+        return (prob, op.eigenvalues[i])
+    end
+
+    #postmeas_states = [bras * permstate for bras in op.eigenbras]
+    #probs = [norm(state)^2 for state in postmeas_states]
+    #index = findfirst(>(rand() * sum(probs)), cumsum(probs))
+    #psi.state = reshape((op.eigenkets[index] * postmeas_states[index]) / sqrt(probs[index]), 2^psi.L)
+    #return (probs[index], op.eigenvalues[index])
 end
 
 # Localilly measures a qubit in the Z direction
@@ -137,19 +147,22 @@ end
 
 # Applying gates might permute the site basis of the state
 # This function sorts the sites to the original order
+# Careful, not tested!
 function sort_sites!(psi::State)
-    tensor_state = reshape(psi.state, psi.tensordim)
-    perm_state = permutedims(tensor_state, sortperm(psi.perm))
-    psi.state = reshape(perm_state, 2^psi.L)
-    psi.perm = collect(psi.indices)
+    invperm = sortperm(psi.perm)
+    permutedims!(reshape(psi.buffer, psi.tensordim), 
+                 reshape(psi.state, psi.tensordim), invperm)
+    permute!(psi.perm, invperm)
+    psi.state, psi.buffer = psi.buffer, psi.state
 end
 
 function overlap(bra::State, ket::State)
     bra_state = bra.state
     if(bra.perm != ket.perm)
         perm = find_perm(ket.perm, bra)
-        bra_state = reshape(permutedims(reshape(bra_state, bra.tensordim),
-                                        perm), bra.flatdim)
+        permutedims!(reshape(bra.buffer, bra.tensordim), 
+                     reshape(bra_state, bra.tensordim), perm) 
+        bra_state = bra.buffer 
     end
     return dot(bra_state, ket.state)
 end
