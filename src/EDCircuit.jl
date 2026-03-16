@@ -10,6 +10,8 @@ using SparseArrays
 using SpecialFunctions: factorial
 using Combinatorics: permutations
 
+# TODO: optimize anywhere there is permutedims
+
 # Container for system properties
 mutable struct Circuit
     pbc::Bool
@@ -91,7 +93,7 @@ struct MeasurementOperator
         op = Hermitian(ComplexF64.(operator))
         L = trailing_zeros(size(op, 1))
 
-        decomp = eigen(operator)
+        decomp = eigen(op)
         vals = unique(x -> round(x, digits = 10), decomp.values)
 
         eigenbras = Vector{Matrix{ComplexF64}}()
@@ -111,7 +113,7 @@ function measure!(psi::State, sites::Vector{Int64}, op::MeasurementOperator)
     permstate::Matrix{ComplexF64} = group_sites!(psi, sites)
     postmeas_states = [bras * permstate for bras in op.eigenbras]
     probs = [norm(state)^2 for state in postmeas_states]
-    index = findfirst(>(rand()), cumsum(probs))
+    index = findfirst(>(rand() * sum(probs)), cumsum(probs))
     psi.state = reshape((op.eigenkets[index] * postmeas_states[index]) / sqrt(probs[index]), 2^psi.L)
     return (probs[index], op.eigenvalues[index])
 end
@@ -140,6 +142,16 @@ function sort_sites!(psi::State)
     perm_state = permutedims(tensor_state, sortperm(psi.perm))
     psi.state = reshape(perm_state, 2^psi.L)
     psi.perm = collect(psi.indices)
+end
+
+function overlap(bra::State, ket::State)
+    bra_state = bra.state
+    if(bra.perm != ket.perm)
+        perm = find_perm(ket.perm, bra)
+        bra_state = reshape(permutedims(reshape(bra_state, bra.tensordim),
+                                        perm), bra.flatdim)
+    end
+    return dot(bra_state, ket.state)
 end
 
 # A usefull progress printer with timestamps

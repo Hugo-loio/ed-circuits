@@ -87,3 +87,32 @@ function stabilizer_entropy(psi::State, ns::Vector{Int})
 
     return res
 end
+
+# Expectation value of a Pauli string over sites
+function pauli_string_ev(psi::State, string::String, sites::Vector{Int64}) 
+    flip_mask = phase_mask = num_y = 0
+    
+    perm_sites = [findfirst(isequal(site), psi.perm) for site in sites]
+    for (i, s) in enumerate(perm_sites)
+        pauli = lowercase(string[i])
+        mask = 1 << (s - 1)
+        if pauli == 'x' 
+            flip_mask |= mask
+        elseif pauli == 'y' # Y = iXZ
+            flip_mask |= mask
+            phase_mask |= mask
+            num_y += 1
+        elseif pauli == 'z'
+            phase_mask |= mask
+        end
+    end
+    
+    total_ev = 0.0 + 0.0im
+
+    @inbounds for i in 0:psi.flatdim-1
+        target = i ⊻ flip_mask # XOR is a controled not (flips the right indices) 
+        phase = iseven(count_ones(target & phase_mask)) ? 1.0 : -1.0
+        total_ev += conj(psi.state[i+1]) * phase * psi.state[target+1]
+    end
+    return real(total_ev * (1im)^num_y)
+end
