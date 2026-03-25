@@ -10,7 +10,8 @@ using SparseArrays
 using SpecialFunctions: factorial
 using Combinatorics: permutations
 
-# Container for system properties
+# Container for circuit properties
+# Often the struct is not needed - TODO: remove in the future
 mutable struct Circuit
     pbc::Bool
     L::Int64
