@@ -144,3 +144,21 @@ function pauli_string_state(orientations::String)
     end
     return psi
 end
+
+function bell_phase_pair(phase::Float64)
+    zeros = kron(qubit0, qubit0)
+    ones = kron(qubit1, qubit1)
+    return State(2, (zeros + exp(im * phase) * ones)/sqrt(2))
+end
+
+function bell_phase_pair_state(
+        pairs::Vector{Vector{Int64}}, phases::Vector{Float64}, nsites::Int64, 
+        unpaired::State{1} = pauli_state("+x"))
+    paired_sites = vcat(pairs...)
+    unpaired_sites = setdiff(1:nsites, paired_sites)
+    state_blocks = vcat([bell_phase_pair(p) for p in phases],
+                        [unpaired for _ in unpaired_sites])
+    psi = reduce(product_state, state_blocks)
+    perm_sites!(psi, invperm(vcat(paired_sites, unpaired_sites)))
+    return psi
+end

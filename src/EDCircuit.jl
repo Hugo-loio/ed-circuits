@@ -64,12 +64,20 @@ function find_perm(sites, psi::State)
     return perm
 end
 
+function perm_sites!(psi::State, perm::Vector{Int64})
+    permute!(psi.perm, perm)
+    permutedims!(reshape(psi.buffer, psi.tensordim), 
+                 reshape(psi.state, psi.tensordim), perm)
+    psi.state, psi.buffer = psi.buffer, psi.state
+end
+
 function group_sites!(psi::State, sites::Vector{Int64})
     nsites = size(sites, 1)
     # Flatten in reverse order due to Julia is column majored arrays
     perm = find_perm(reverse(sites), psi) 
     permute!(psi.perm, perm)
-    permutedims!(reshape(psi.buffer, psi.tensordim), reshape(psi.state, psi.tensordim), perm)
+    permutedims!(reshape(psi.buffer, psi.tensordim), 
+                 reshape(psi.state, psi.tensordim), perm)
     return reshape(psi.buffer, (2^nsites, 2^(psi.L-nsites)))
 end
 
@@ -150,11 +158,7 @@ end
 # This function sorts the sites to the original order
 # Careful, not tested!
 function sort_sites!(psi::State)
-    invperm = sortperm(psi.perm)
-    permutedims!(reshape(psi.buffer, psi.tensordim), 
-                 reshape(psi.state, psi.tensordim), invperm)
-    permute!(psi.perm, invperm)
-    psi.state, psi.buffer = psi.buffer, psi.state
+    perm_sites!(sortperm(psi.perm))
 end
 
 function overlap(bra::State, ket::State)
