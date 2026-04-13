@@ -153,12 +153,13 @@ end
 
 function bell_phase_pair_state(
         pairs::Vector{Vector{Int64}}, phases::Vector{Float64}, nsites::Int64, 
-        unpaired::State{1} = pauli_state("+x"))
+        unpaired::State{1} = pauli_state("+z"))
     paired_sites = vcat(pairs...)
     unpaired_sites = setdiff(1:nsites, paired_sites)
     state_blocks = vcat([bell_phase_pair(p) for p in phases],
                         [unpaired for _ in unpaired_sites])
     psi = reduce(product_state, state_blocks)
     perm_sites!(psi, invperm(vcat(paired_sites, unpaired_sites)))
+    state.perm = collect(1:nsites) 
     return psi
 end
