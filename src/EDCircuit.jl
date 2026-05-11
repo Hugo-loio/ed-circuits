@@ -152,7 +152,7 @@ end
 # This function sorts the sites to the original order
 # Careful, not tested!
 function sort_sites!(psi::State)
-    perm_sites!(sortperm(psi.perm))
+    perm_sites!(psi, sortperm(psi.perm))
 end
 
 function overlap(bra::State, ket::State)

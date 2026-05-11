@@ -37,6 +37,6 @@ function apply_random_pauli_string!(sites::Vector{Int64}, psi::State;
         include_identity::Bool = false)
     min_str::Int64 = 1
     if(include_identity) min_str = 0 end
-    max_str::Int64 = 1 << (2 * length(sites))
+    max_str::Int64 = (1 << (2 * length(sites))) - 1
     apply_pauli_string!(rand(min_str:max_str), sites, psi)
 end
