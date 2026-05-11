@@ -129,12 +129,6 @@ function measure!(psi::State, sites::Vector{Int64}, op::MeasurementOperator)
         psi.state, psi.buffer = psi.buffer, psi.state
         return (prob, op.eigenvalues[i])
     end
-
-    #postmeas_states = [bras * permstate for bras in op.eigenbras]
-    #probs = [norm(state)^2 for state in postmeas_states]
-    #index = findfirst(>(rand() * sum(probs)), cumsum(probs))
-    #psi.state = reshape((op.eigenkets[index] * postmeas_states[index]) / sqrt(probs[index]), 2^psi.L)
-    #return (probs[index], op.eigenvalues[index])
 end
 
 # Localilly measures a qubit in the Z direction
@@ -174,6 +168,9 @@ end
 
 # A usefull progress printer with timestamps
 include("progress.jl")
+
+# Special functions for applying pauli gates
+include("pauli.jl")
 
 # Predifined gates
 include("gates.jl")
