@@ -150,7 +150,6 @@ end
 
 # Applying gates might permute the site basis of the state
 # This function sorts the sites to the original order
-# Careful, not tested!
 function sort_sites!(psi::State)
     perm_sites!(psi, sortperm(psi.perm))
 end
@@ -164,6 +163,13 @@ function overlap(bra::State, ket::State)
         bra_state = bra.buffer 
     end
     return dot(bra_state, ket.state)
+end
+
+function copy!(to::State, from::State)
+    if to.L != from.L throw(ArgumentError("State length mismatch")) end
+    to.state .= from.state
+    to.buffer .= from.buffer
+    to.perm .= from.perm
 end
 
 # A usefull progress printer with timestamps
